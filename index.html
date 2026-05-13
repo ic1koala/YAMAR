@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="YAMAR - 完全オフライン対応の山座同定アプリ。カメラ映像にリアルタイムで山の名前と標高を表示。登山・ハイキングの記録に。">
+  <meta name="theme-color" content="#1e3a5f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="YAMAR">
+  <title>YAMAR - 山座同定アプリ</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== スプラッシュ画面 ===== -->
+  <section id="splash-screen" class="screen active">
+    <div class="splash-content">
+      <div class="splash-logo">🏔️</div>
+      <h1 class="splash-title">YAMAR</h1>
+      <p class="splash-subtitle">山座同定 ＆ 記録アプリ</p>
+      <p id="splash-status" class="splash-status">読み込み中...</p>
+      <button id="start-btn" class="splash-btn">はじめる</button>
+    </div>
+  </section>
+
+  <!-- ===== ARカメラ画面 ===== -->
+  <section id="ar-screen" class="screen">
+    <video id="camera-feed" playsinline muted autoplay></video>
+    <canvas id="ar-canvas"></canvas>
+
+    <!-- 距離フィルター -->
+    <div class="range-badge">📏 50km</div>
+    <!-- 山の検出数 -->
+    <div class="mountain-count">⛰️ 0 座を検出中</div>
+    <!-- デバッグ情報 -->
+    <div class="ar-debug"></div>
+
+    <!-- 撮影コントロール -->
+    <div class="ar-controls">
+      <button class="ar-side-btn" id="gallery-shortcut" title="ギャラリー">🖼️</button>
+      <button class="capture-btn" id="capture-btn" title="撮影"></button>
+      <button class="ar-side-btn" id="upload-trigger-btn" title="画像から特定">📂</button>
+      <!-- 隠しファイル入力 -->
+      <input type="file" id="photo-upload-input" accept="image/jpeg" style="display:none;">
+    </div>
+
+    <!-- フラッシュ効果 -->
+    <div class="flash-overlay"></div>
+  </section>
+
+  <!-- ===== プレビュー画面 ===== -->
+  <section id="preview-screen" class="screen">
+    <div class="preview-header">
+      <span style="font-weight:600;">撮影プレビュー</span>
+    </div>
+    <div class="preview-image-wrap">
+      <img id="preview-img" alt="撮影プレビュー">
+    </div>
+    <div class="preview-actions">
+      <button id="discard-btn" class="preview-btn discard">✕ やり直す</button>
+      <button id="save-btn" class="preview-btn save">✓ 保存する</button>
+    </div>
+  </section>
+
+  <!-- ===== ギャラリー画面 ===== -->
+  <section id="gallery-screen" class="screen">
+    <div class="screen-header">
+      <h2>📷 撮影記録</h2>
+      <div class="count gallery-count">0 枚の記録</div>
+    </div>
+    <div class="gallery-grid"></div>
+    <div class="gallery-empty">
+      <div class="empty-icon">📷</div>
+      <p>まだ写真がありません</p>
+      <p style="font-size:12px;">AR画面で撮影ボタンを押して<br>山の風景を記録しましょう</p>
+    </div>
+  </section>
+
+  <!-- ===== マップ画面 ===== -->
+  <section id="map-screen" class="screen">
+    <div class="screen-header">
+      <h2>🗾 振り返りマップ</h2>
+      <div class="count">撮影した場所をマップで確認</div>
+    </div>
+    <div class="map-container"></div>
+    <div class="map-controls">
+      <button class="map-zoom-btn" id="map-zoom-in">＋</button>
+      <button class="map-zoom-btn" id="map-zoom-out">−</button>
+      <button class="map-zoom-btn" id="map-reset">↺</button>
+    </div>
+  </section>
+
+  <!-- ===== 設定画面 ===== -->
+  <section id="settings-screen" class="screen">
+    <div class="screen-header">
+      <h2>⚙️ 設定</h2>
+    </div>
+    <div class="settings-list">
+      <div class="setting-group">
+        <div class="setting-group-title">AR表示</div>
+        <div class="setting-item">
+          <span class="setting-label">表示範囲</span>
+          <select id="range-select" class="setting-select">
+            <option value="10">10 km</option>
+            <option value="30">30 km</option>
+            <option value="50" selected>50 km</option>
+            <option value="100">100 km</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <span class="setting-label">デバッグ情報を表示</span>
+          <button id="debug-toggle" class="setting-toggle"></button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">データ</div>
+        <div class="setting-item">
+          <span class="setting-label">山データ</span>
+          <span class="setting-value" id="mountain-count-setting">-</span>
+        </div>
+        <div class="setting-item">
+          <span class="setting-label">保存写真数</span>
+          <span class="setting-value" id="photo-count-setting">-</span>
+        </div>
+      </div>
+
+      <div class="app-info">
+        <strong>YAMAR</strong> v1.0.0<br>
+        完全オフライン山座同定アプリ<br>
+        © 2026 YAMAR Project
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 写真詳細モーダル ===== -->
+  <div class="photo-modal">
+    <div class="modal-header">
+      <span style="font-weight:600;">写真の詳細</span>
+      <button id="modal-close" class="modal-close">✕</button>
+    </div>
+    <div class="modal-image">
+      <img id="modal-img" alt="写真詳細">
+    </div>
+    <div class="modal-info">
+      <div class="modal-info-row">
+        <span class="modal-info-label">📅 撮影日時</span>
+        <span class="modal-info-value" id="modal-date">-</span>
+      </div>
+      <div class="modal-info-row">
+        <span class="modal-info-label">📍 位置</span>
+        <span class="modal-info-value" id="modal-location">-</span>
+      </div>
+      <div class="modal-info-row">
+        <span class="modal-info-label">🏔️ 標高</span>
+        <span class="modal-info-value" id="modal-altitude">-</span>
+      </div>
+      <div class="modal-info-row">
+        <span class="modal-info-label">🧭 方角</span>
+        <span class="modal-info-value" id="modal-heading">-</span>
+      </div>
+      <div class="modal-info-row">
+        <span class="modal-info-label">⛰️ 検出した山</span>
+        <span class="modal-info-value" id="modal-mountains">-</span>
+      </div>
+      <button id="modal-delete-btn" class="modal-delete">🗑️ この写真を削除</button>
+    </div>
+  </div>
+
+  <!-- ===== タブバー ===== -->
+  <nav id="tab-bar" style="display:none;">
+    <button class="tab-item active" data-screen="ar">
+      <span class="tab-icon">📷</span>
+      <span>AR</span>
+    </button>
+    <button class="tab-item" data-screen="gallery">
+      <span class="tab-icon">🖼️</span>
+      <span>記録</span>
+    </button>
+    <button class="tab-item" data-screen="map">
+      <span class="tab-icon">🗾</span>
+      <span>マップ</span>
+    </button>
+    <button class="tab-item" data-screen="settings">
+      <span class="tab-icon">⚙️</span>
+      <span>設定</span>
+    </button>
+  </nav>
+
+  <!-- メインスクリプト -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
